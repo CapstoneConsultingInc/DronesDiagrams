@@ -1,0 +1,151 @@
+@startuml
+skinparam sequence {
+
+ArrowColor Black
+ActorBorderColor Black
+LifeLineBorderColor blue
+LifeLineBackgroundColor White
+
+ParticipantBorderColor Black
+ParticipantBackgroundColor White
+
+ParticipantFontSize 12
+ParticipantFontColor Black
+
+ActorBackgroundColor White
+ActorFontColor Black
+ActorFontSize 12
+
+boxBorderColor Black
+
+}
+
+skinparam databaseBackgroundColor White
+skinparam databaseFontColor Black
+skinparam databaseBorderColor Black
+skinparam databaseFontSize 12
+skinparam shadowing false
+skinparam BoxPadding 20
+
+Actor Rider
+
+Participant "Rider\nMicroFrontend" as RiderMicroFrontend
+
+Box "Inventory Service" #lightblue
+Participant "Rider\nInventory\nAPI" as RiderInventoryAPI
+Participant "Driver\nInventory\nAPI" as DriverInventoryAPI
+Participant "Ride\nInventory\nManager" as RideInventoryManager
+Database "Ride\nInventory" as RideInventory
+End box
+
+Box "Event Bus" #tan
+Participant "Ride\nRequested" as RideRequested
+Participant "Ride\nReserved" as RideReserved
+Participant "Driver\nAccepted" as DriverAccepted
+Participant "Ride\nReadied" as RideReadied
+Participant "Rider\nAccepted" as RiderAccepted
+Participant "Order\nPlaced" as OrderPlaced
+Participant "Pickup\nCreated" as PickupCreated
+End box
+
+
+Box "Order Fulfillment\nService" #lightGrey
+Participant "Driver\nOrder\nAPI" as DriverOrderAPI
+Participant "Order\nFulfillment\nOrchestration" as OrderFulfillmentOrchestration
+Database "Ride\nOrders" as RideOrders
+End Box
+
+Participant "Driver\nMicroFrontend" as DriverMicroFrontend
+
+Actor Driver
+
+title Rider orders a ride
+
+Rider -> RiderMicroFrontend: Request Ride
+activate RiderMicroFrontend
+RiderMicroFrontend -> RiderInventoryAPI
+deactivate RiderMicroFrontend
+activate RiderInventoryAPI
+RiderInventoryAPI -> RideRequested: Published
+deactivate RiderInventoryAPI
+activate RideRequested
+
+RideRequested -> RideInventoryManager: Subscribed
+deactivate RideRequested
+
+activate RideInventoryManager
+RideInventoryManager -> RideInventory: Search for ride
+activate RideInventory
+RideInventory --> RideInventoryManager: Ride Reserved
+note right: use transactional outbox
+deactivate RideInventory
+RideInventoryManager -> RideReserved
+deactivate RideInventoryManager
+activate RideReserved
+RideReserved -> DriverInventoryAPI: Subscribed
+deactivate RideReserved
+activate DriverInventoryAPI
+DriverInventoryAPI -> DriverMicroFrontend: Pushed
+deactivate DriverInventoryAPI
+activate DriverMicroFrontend
+Driver -> DriverMicroFrontend: Accept Ride
+DriverMicroFrontend -> DriverInventoryAPI: Ride Accepted
+deactivate DriverMicroFrontend
+activate DriverInventoryAPI
+DriverInventoryAPI -> DriverAccepted: Published
+deactivate DriverInventoryAPI
+activate DriverAccepted
+DriverAccepted -> RideInventoryManager: Subscribed
+deactivate DriverAccepted
+activate RideInventoryManager
+RideInventoryManager -> RideInventory: Update Driver Accepted
+activate RideInventory
+RideInventory --> RideInventoryManager
+note right: use transactional outbox
+deactivate RideInventory
+RideInventoryManager -> RideReadied: Published
+deactivate RideInventoryManager
+activate RideReadied
+RideReadied -> RiderInventoryAPI: Subscribed
+deactivate RideReadied
+activate RiderInventoryAPI
+RiderInventoryAPI -> RiderMicroFrontend: Pushed
+deactivate RiderInventoryAPI
+activate RiderMicroFrontend
+Rider -> RiderMicroFrontend: Accept Ride
+RiderMicroFrontend -> RiderInventoryAPI: Ride Accepted
+deactivate RiderMicroFrontend
+activate RiderInventoryAPI
+RiderInventoryAPI -> RiderAccepted: Published
+deactivate RiderInventoryAPI
+activate RiderAccepted
+RiderAccepted -> RideInventoryManager: Subscribed
+deactivate RiderAccepted
+activate RideInventoryManager
+RideInventoryManager -> RideInventory: Update Ride Ordered
+activate RideInventory
+RideInventory --> RideInventoryManager
+deactivate RideInventory
+note right: use transactional outbox
+RideInventoryManager -> OrderPlaced
+deactivate RideInventoryManager
+activate OrderPlaced
+OrderPlaced -> OrderFulfillmentOrchestration: Subscribed
+deactivate OrderPlaced
+activate OrderFulfillmentOrchestration
+OrderFulfillmentOrchestration -> RideOrders: Create Ride Order
+activate RideOrders
+RideOrders --> OrderFulfillmentOrchestration
+deactivate RideOrders
+note right: use transactional outbox
+OrderFulfillmentOrchestration -> PickupCreated: Published
+deactivate OrderFulfillmentOrchestration
+activate PickupCreated
+PickupCreated -> DriverOrderAPI: Subscribed
+deactivate PickupCreated
+activate DriverOrderAPI
+DriverOrderAPI -> DriverMicroFrontend: Pushed
+deactivate DriverOrderAPI
+activate DriverMicroFrontend
+
+@enduml

@@ -1,0 +1,95 @@
+@startuml
+skinparam sequence {
+
+ArrowColor Black
+ActorBorderColor Black
+LifeLineBorderColor blue
+LifeLineBackgroundColor White
+
+ParticipantBorderColor Black
+ParticipantBackgroundColor White
+
+ParticipantFontSize 12
+ParticipantFontColor Black
+
+ActorBackgroundColor White
+ActorFontColor Black
+ActorFontSize 12
+
+boxBorderColor Black
+
+}
+
+skinparam databaseBackgroundColor White
+skinparam databaseFontColor Black
+skinparam databaseBorderColor Black
+skinparam databaseFontSize 12
+skinparam shadowing false
+
+
+
+Actor Rider
+
+Participant "Rider\nMicroFrontend"
+
+Box "Inventory Service" #lightblue
+Participant "Rider\nInventory\nAPI"
+Participant "Driver\nInventory\nAPI"
+Participant "Ride\nInventory\nManager"
+Database "Ride\nInventory"
+End box
+
+Participant "Driver\nStatus\nUpdated\nEvents"
+
+'Box #LightGrey
+'Participant "Order\nFulfillment\nOrchestration"
+'Database "Ride\nOrders"
+'End Box
+
+Participant "Driver\nMicroFrontend"
+
+Actor Driver
+
+title Driver online without a Rider
+
+Driver -> "Driver\nMicroFrontend": Go Online
+activate "Driver\nMicroFrontend"
+
+"Driver\nMicroFrontend" -> "Driver\nInventory\nAPI": Status Update
+activate "Driver\nInventory\nAPI"
+
+"Driver\nInventory\nAPI" -> "Driver\nStatus\nUpdated\nEvents": Publish Status Update
+
+deactivate "Driver\nInventory\nAPI"
+
+activate "Driver\nStatus\nUpdated\nEvents"
+"Driver\nStatus\nUpdated\nEvents" -> "Ride\nInventory\nManager": Subscribed
+deactivate "Driver\nStatus\nUpdated\nEvents"
+
+activate "Ride\nInventory\nManager"
+"Ride\nInventory\nManager" -> "Ride\nInventory": Update
+deactivate
+
+...30 seconds...
+
+"Driver\nMicroFrontend" -> "Driver\nInventory\nAPI": Status Update
+activate "Driver\nInventory\nAPI"
+
+"Driver\nInventory\nAPI" -> "Driver\nStatus\nUpdated\nEvents": Publish Status Update
+
+deactivate "Driver\nInventory\nAPI"
+
+activate "Driver\nStatus\nUpdated\nEvents"
+"Driver\nStatus\nUpdated\nEvents" -> "Ride\nInventory\nManager": Subscribed
+deactivate "Driver\nStatus\nUpdated\nEvents"
+
+activate "Ride\nInventory\nManager"
+"Ride\nInventory\nManager" -> "Ride\nInventory": Update
+deactivate
+
+...30 seconds...
+
+
+
+
+@enduml

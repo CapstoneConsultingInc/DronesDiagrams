@@ -1,0 +1,143 @@
+@startuml
+skinparam sequence {
+
+ArrowColor Black
+ActorBorderColor Black
+LifeLineBorderColor blue
+LifeLineBackgroundColor White
+
+ParticipantBorderColor Black
+ParticipantBackgroundColor White
+
+ParticipantFontSize 12
+ParticipantFontColor Black
+
+ActorBackgroundColor White
+ActorFontColor Black
+ActorFontSize 12
+
+boxBorderColor Black
+
+}
+
+skinparam databaseBackgroundColor White
+skinparam databaseFontColor Black
+skinparam databaseBorderColor Black
+skinparam databaseFontSize 12
+skinparam shadowing false
+skinparam BoxPadding 20
+
+title Drone Tracking
+
+Actor "Demo\nAdmin" as DemoAdmin
+
+Box "Order Simulator" #lightgrey
+Participant "Shipment\nTraffic\nGenerator" as ShipmentTrafficGenerator
+End box
+
+Box "Shipments" #lightgreen
+Participant "Shipments\nAPI" as ShipmentsAPI
+Participant "Shipments\nManager" as ShipmentsManager
+Database "Shipments" as Shipments
+End box
+
+Box "Drones" #lightblue
+Participant "Drones\nAPI" as DronesAPI
+Participant "Drones\nManager" as DronesManager
+Database "Drones\nDatabase" as DronesDatabase
+End box
+
+Box "Maps"
+Participant "Maps\nAPI" as MapsAPI
+Participant "Maps\nManager" as MapsManager
+Database "Maps\nDatabase" as MapsDatabase
+End box
+
+Box "Event Bus" #tan
+Participant "Shipment\nRequested" as ShipmentRequested
+Participant "Drone\nAssigned" as DroneAssigned
+Participant "Drone\nHeaded\nPickup" as DroneHeadedPickup
+Participant "Drone\nArrived\nPickup" as DroneArrivedPickup
+Participant "Drone\nLoaded" as DroneLoaded
+Participant "Drone\nHeaded\nDropoff" as DroneHeadedVendor
+Participant "Drone\nArrived\nDropoff" as DroneArrivedDropoff
+Participant "Drone\nUnloaded" as DroneUnloaded
+Participant "Drone\nIdled" as DroneIdled
+End box
+
+Box "Drone Simulator" #pink
+Participant "Drone\nLocation\nGenerator" as DroneLocationGenerator
+end Box
+activate ShipmentTrafficGenerator
+ShipmentTrafficGenerator -> ShipmentRequested: Published
+activate ShipmentRequested
+ShipmentRequested -> DronesManager: Subscribed
+deactivate ShipmentRequested
+
+activate DronesManager
+DronesManager -> DronesDatabase: Find Idle Drone
+activate DronesDatabase
+DronesDatabase --> DronesManager
+deactivate DronesDatabase
+DronesManager -> DronesDatabase: Assign Drone
+activate DronesDatabase
+DronesDatabase --> DronesManager
+deactivate DronesDatabase
+DronesManager -> DroneAssigned: Publish
+note left: use transactional outbox pattern
+deactivate DronesManager
+activate DroneAssigned
+DroneAssigned -> DroneLocationGenerator: Subscribed
+deactivate DroneAssigned
+
+activate DroneLocationGenerator
+
+group Drone updates its location on way to pickup
+DroneLocationGenerator -> DroneHeadedPickup: Publish
+activate DroneHeadedPickup
+DroneHeadedPickup -> MapsManager: Subscribed
+deactivate DroneHeadedPickup
+activate MapsManager
+MapsManager -> MapsDatabase: Update
+activate MapsDatabase
+MapsDatabase --> MapsManager
+deactivate MapsDatabase
+deactivate MapsManager
+
+DroneLocationGenerator -> DroneHeadedPickup: Publish
+activate DroneHeadedPickup
+DroneHeadedPickup -> MapsManager: Subscribed
+deactivate DroneHeadedPickup
+activate MapsManager
+MapsManager -> MapsDatabase: Update
+activate MapsDatabase
+MapsDatabase --> MapsManager
+deactivate MapsDatabase
+deactivate MapsManager
+
+...
+end
+
+DroneLocationGenerator -> DroneArrivedPickup: Publish
+activate DroneArrivedPickup
+DroneArrivedPickup -> MapsManager: Subscribed
+activate MapsManager
+DroneArrivedPickup -> DronesManager: Subscribed
+deactivate DroneArrivedPickup
+activate DronesManager
+
+
+MapsManager -> MapsDatabase: Update
+activate MapsDatabase
+MapsDatabase --> MapsManager
+deactivate MapsDatabase
+deactivate MapsManager
+
+DronesManager -> DronesDatabase: Update Drone State
+activate DronesDatabase
+DronesDatabase --> DronesManager
+deactivate DronesDatabase
+deactivate DronesManager
+
+...
+@enduml
